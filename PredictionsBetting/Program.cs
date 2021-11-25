@@ -122,17 +122,19 @@ namespace PredictionsBetting
         public static Payout EvaluateFullContract(bool resolution, UserBet winner, UserBet loser)
         {
             var middle = (winner.Estimate + loser.Estimate) / 200;
+
+            if (winner.Estimate == loser.Estimate)
+            {
+                return new Payout(0, loser.User, winner.User, PayoutMethod.FullContract);
+            }
+
             if ((resolution && winner.Estimate > loser.Estimate) || (!resolution && winner.Estimate<loser.Estimate))
             {
                 return new Payout(1 - middle, loser.User, winner.User, PayoutMethod.FullContract);
             }
-            else if (winner.Estimate < loser.Estimate)
-            {
-                return new Payout(middle, loser.User, winner.User, PayoutMethod.FullContract);
-            }
             else
             {
-                return new Payout(0, loser.User, winner.User, PayoutMethod.FullContract);
+                return new Payout(middle, loser.User, winner.User, PayoutMethod.FullContract);
             }
         }
 
