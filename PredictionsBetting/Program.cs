@@ -79,6 +79,7 @@ namespace PredictionsBetting
             methods[PayoutMethod.StraightBet] = EvaluateStraight;
             methods[PayoutMethod.DiffBet] = EvaluateDiffBets;
             methods[PayoutMethod.FullContract] = EvaluateFullContract;
+            methods[PayoutMethod.Multiplicative] = EvaluateMultiplicative;
             var results = new Dictionary<PayoutMethod, Dictionary<string, double>>();
             foreach (var pred in preds)
             {
@@ -119,23 +120,64 @@ namespace PredictionsBetting
             return new Payout(gap / 100.0, loser.User, winner.User, PayoutMethod.DiffBet);
         }
 
+        /// <summary>
+        /// This method has some serious problems.  if the bet resolves true, 0.9 vs 0.90001 will pay out MUCH LESS than 0.1 vs 0.10001.
+        /// This is a defect against the principle of "insensitivity to small variations".
+        /// </summary>
         public static Payout EvaluateFullContract(bool resolution, UserBet winner, UserBet loser)
         {
-            var middle = (winner.Estimate + loser.Estimate) / 200;
-
             if (winner.Estimate == loser.Estimate)
             {
                 return new Payout(0, loser.User, winner.User, PayoutMethod.FullContract);
             }
 
-            if ((resolution && winner.Estimate > loser.Estimate) || (!resolution && winner.Estimate<loser.Estimate))
+            //the correct location on the probability line.
+            var correctLocation = resolution ? 1 : 0;
+
+            //the wrongness of the pair of you.
+            var middle = (winner.Estimate + loser.Estimate) / 200;
+
+            //examples
+            //correct:1
+            //winner:1
+            //loser:0    //very different opinions.
+            // => winner makes 0.5
+
+            //correct:1
+            //winner:0.1
+            //loser:0.0   //you being WRONGER makes you make more money
+            // => winner makes 0.95
+
+            //correct:1  
+            //winner:1
+            //loser:0.9  //both roughly correct - this is okay
+            // => winner makes 0.05
+
+            var award = Math.Abs(correctLocation - middle);
+            return new Payout(award, loser.User, winner.User, PayoutMethod.FullContract);
+        }
+
+        /// <summary>
+        /// for bets resolving true, we want:
+        /// 0.9999 vs 0.9: A wins a lot
+        /// 0.9 vs 0.8: A wins a bit
+        /// 0.1 vs 0.01: A wins a bit
+        /// </summary>
+        public static Payout EvaluateMultiplicative(bool resolution, UserBet winner, UserBet loser)
+        {
+            var correctLocation = resolution ? 1 : 0;
+            var winnerGap = Math.Abs(winner.Estimate / 100.0 - correctLocation);
+            var loserGap = Math.Abs(loser.Estimate / 100.0 - correctLocation);
+            double winnerRightness;
+            if (winnerGap == 0)
             {
-                return new Payout(1 - middle, loser.User, winner.User, PayoutMethod.FullContract);
+                winnerRightness = 1;
             }
             else
             {
-                return new Payout(middle, loser.User, winner.User, PayoutMethod.FullContract);
+                winnerRightness = (loserGap-winnerGap)/loserGap;
             }
+            return new Payout(winnerRightness, loser.User, winner.User, PayoutMethod.Multiplicative);
         }
 
         public static Payout EvaluateStraight(bool resolution, UserBet winner,  UserBet loser)
