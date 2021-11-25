@@ -167,6 +167,7 @@ namespace PredictionsBetting
                     UserBet loser;
                     if (ub1.Estimate == ub2.Estimate)
                     {
+                        Console.WriteLine();
                         continue;
                     }
                     if (pred.ResolvedTrue)
