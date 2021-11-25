@@ -121,7 +121,8 @@ namespace PredictionsBetting
         }
 
         /// <summary>
-        /// This method has some serious problems.  if the bet resolves true, 0.9 vs 0.90001 will pay out MUCH LESS than 0.1 vs 0.10001.
+        /// This method has some serious problems.  if the bet resolves true, 0.9 vs 0.90001
+        /// will pay out MUCH LESS than 0.1 vs 0.10001.
         /// This is a defect against the principle of "insensitivity to small variations".
         /// </summary>
         public static Payout EvaluateFullContract(bool resolution, UserBet winner, UserBet loser)
@@ -134,18 +135,18 @@ namespace PredictionsBetting
             //the correct location on the probability line.
             var correctLocation = resolution ? 1 : 0;
 
-            //the wrongness of the pair of you.
+            //the average, a location you would both have accepted.
             var middle = (winner.Estimate + loser.Estimate) / 200;
 
             //examples
             //correct:1
             //winner:1
-            //loser:0    //very different opinions.
+            //loser:0    //very different opinions, yet small rewards.
             // => winner makes 0.5
 
             //correct:1
             //winner:0.1
-            //loser:0.0   //you being WRONGER makes you make more money
+            //loser:0.0   //winner being WRONGER makes you make more money
             // => winner makes 0.95
 
             //correct:1  
@@ -159,25 +160,27 @@ namespace PredictionsBetting
 
         /// <summary>
         /// for bets resolving true, we want:
-        /// 0.9999 vs 0.9: A wins a lot
-        /// 0.9 vs 0.8: A wins a bit
-        /// 0.1 vs 0.01: A wins a bit
+        /// 0.9999 vs 0.9: A wins a lot (since 1000x multiple of gap)
+        /// 0.9 vs 0.8: A wins medium (since 2x gap)
+        /// 0.1 vs 0.01: A wins a little (since they were both significantly wrong)
+        /// 0.5 vs 0.4: A wins a little  (since they were about equal in wrongness)
+        /// and vice versa for false.
         /// </summary>
         public static Payout EvaluateMultiplicative(bool resolution, UserBet winner, UserBet loser)
         {
             var correctLocation = resolution ? 1 : 0;
             var winnerGap = Math.Abs(winner.Estimate / 100.0 - correctLocation);
             var loserGap = Math.Abs(loser.Estimate / 100.0 - correctLocation);
-            double winnerRightness;
+            double winnerRightnessRatio;
             if (winnerGap == 0)
             {
-                winnerRightness = 1;
+                winnerRightnessRatio = 1;
             }
             else
             {
-                winnerRightness = (loserGap-winnerGap)/loserGap;
+                winnerRightnessRatio = (loserGap-winnerGap)/loserGap;
             }
-            return new Payout(winnerRightness, loser.User, winner.User, PayoutMethod.Multiplicative);
+            return new Payout(winnerRightnessRatio, loser.User, winner.User, PayoutMethod.Multiplicative);
         }
 
         public static Payout EvaluateStraight(bool resolution, UserBet winner,  UserBet loser)
