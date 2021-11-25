@@ -150,6 +150,8 @@ namespace PredictionsBetting
                 {
                     var ub1 = pred.UserBets.Skip(ii).First();
                     var ub2 = pred.UserBets.Skip(jj).First();
+                    Console.Write($"\t\t{ub1} vs {ub2}");
+
                     UserBet winner;
                     UserBet loser;
                     if (ub1.Estimate == ub2.Estimate)
@@ -173,7 +175,7 @@ namespace PredictionsBetting
                     {
                         loser = ub1;
                     }
-                    Console.Write($"\t\t{ub1} vs {ub2}");
+                    
                     var p = func(winner, loser);
                     Console.WriteLine($"\tpayout: {p}");
                     res.Add(p);
@@ -182,7 +184,7 @@ namespace PredictionsBetting
             return res;
         }
 
-        public static IEnumerable<Predicate> LoadPredicates( )
+        public static IEnumerable<Predicate> LoadPredicates()
         {
             var lines = System.IO.File.ReadAllLines(path).Where(el => !string.IsNullOrEmpty(el)).ToList();
             var header = lines.First();

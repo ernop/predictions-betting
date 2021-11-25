@@ -15,8 +15,6 @@ namespace PredictionsBetting
         public bool Valid { get; set; }
         public string ValidityReason { get; set; }
         public IEnumerable<Payout> PayoutsStraightBet { get; set; }
-        //public Dictionary<string, double> PayoutResults = new Dictionary<string, double>();
-
         public string Domain { get; set; }
         public Predicate(string line, IEnumerable<User> users)
         {
@@ -100,9 +98,6 @@ namespace PredictionsBetting
             //var ub = string.Join(",", UserBets.Select(el => el.ToString()));
             var ub = "";
             return $"{Text}{ub}, Resolution:{ResolvedTrue}";
-        }
-
-        
-       
+        }       
     }
 }
