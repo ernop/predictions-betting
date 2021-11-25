@@ -92,7 +92,7 @@ namespace PredictionsBetting
                     if (!results.ContainsKey(methodEnum)) { results[methodEnum] = new Dictionary<string, double>(); }
                     var payouts = EvaluateAccordingToFunction(pred, method, methodEnum);
                     var payoutResults = SumPayouts(payouts);
-                    var moneyDescription = users.Select(el => $"{el}: {payoutResults[el.Name]}").ToList();
+                    var moneyDescription = users.Select(el => $"{el}: {payoutResults[el.Name]:N2}").ToList();
                     Console.WriteLine("\t\t"+string.Join(" ", moneyDescription));
                     foreach (var pr in payoutResults)
                     {
@@ -115,14 +115,25 @@ namespace PredictionsBetting
 
         public static Payout EvaluateDiffBets(UserBet winner, UserBet loser)
         {
-            var middle = (winner.Estimate + loser.Estimate)/2;
-            return new Payout(middle/100.0, loser.User, winner.User, PayoutMethod.DiffBet);
+            var gap = Math.Abs(winner.Estimate - loser.Estimate);
+            return new Payout(gap / 100.0, loser.User, winner.User, PayoutMethod.FullContract);
         }
 
         public static Payout EvaluateFullContract(UserBet winner, UserBet loser)
         {
-            var gap = Math.Abs(winner.Estimate - loser.Estimate);
-            return new Payout(gap/100.0, loser.User, winner.User, PayoutMethod.FullContract);
+            var middle = (winner.Estimate + loser.Estimate) / 200;
+            if (winner.Estimate > loser.Estimate)
+            {
+                return new Payout(1 - middle, loser.User, winner.User, PayoutMethod.DiffBet);
+            }
+            else if (winner.Estimate < loser.Estimate)
+            {
+                return new Payout(middle, loser.User, winner.User, PayoutMethod.DiffBet);
+            }
+            else
+            {
+                return new Payout(0, loser.User, winner.User, PayoutMethod.DiffBet);
+            }
         }
 
         public static Payout EvaluateStraight(UserBet winner,  UserBet loser)

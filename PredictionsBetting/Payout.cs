@@ -17,7 +17,7 @@
 
         public override string ToString()
         {
-            return $"{From} pays {Amount} to {To}";
+            return $"{From} pays {Amount:N2} to {To}";
         }
     }
 }
