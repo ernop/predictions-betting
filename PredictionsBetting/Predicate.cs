@@ -14,8 +14,11 @@ namespace PredictionsBetting
         public DateTime DueDate { get; set; }
         public bool Valid { get; set; }
         public string ValidityReason { get; set; }
-        public IEnumerable<Payout> PayoutsStraightBet { get; set; }
         public string Domain { get; set; }
+
+        /// <summary>
+        /// parsing text
+        /// </summary>
         public Predicate(string line, IEnumerable<User> users)
         {
             Valid = true;
@@ -41,7 +44,6 @@ namespace PredictionsBetting
                 ValidityReason = "not due yet";
                 return;
             }
-            //colnames are hardcoded here.
             for (var ii = 5; ii < 9; ii++)
             {
                 var ub = new UserBet();
@@ -66,10 +68,10 @@ namespace PredictionsBetting
                 return;
             }
 
-            if (TryGetResult(lsp[9], out var finalResult)){
+            if (TryGetResolution(lsp[9], out var finalResult)){
                 ResolvedTrue = finalResult;
             }
-            else if (TryGetResult(lsp[10], out var candidateResult))
+            else if (TryGetResolution(lsp[10], out var candidateResult))
             {
                 ResolvedTrue = candidateResult;
             }
@@ -81,7 +83,7 @@ namespace PredictionsBetting
             }
         }
 
-        private bool TryGetResult(string val, out bool result)
+        private bool TryGetResolution(string val, out bool result)
         {
             val = val.ToLower();
             if (val != "t" && val != "f")
