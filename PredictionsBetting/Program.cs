@@ -75,7 +75,7 @@ namespace PredictionsBetting
 
         public static void Evaluate(IEnumerable<Predicate> preds)
         {
-            var methods = new Dictionary<PayoutMethod, Func<UserBet, UserBet, Payout>>() { };
+            var methods = new Dictionary<PayoutMethod, Func<bool, UserBet, UserBet, Payout>>() { };
             methods[PayoutMethod.StraightBet] = EvaluateStraight;
             methods[PayoutMethod.DiffBet] = EvaluateDiffBets;
             methods[PayoutMethod.FullContract] = EvaluateFullContract;
@@ -113,30 +113,30 @@ namespace PredictionsBetting
             }
         }
 
-        public static Payout EvaluateDiffBets(UserBet winner, UserBet loser)
+        public static Payout EvaluateDiffBets(bool resolution, UserBet winner, UserBet loser)
         {
             var gap = Math.Abs(winner.Estimate - loser.Estimate);
-            return new Payout(gap / 100.0, loser.User, winner.User, PayoutMethod.FullContract);
+            return new Payout(gap / 100.0, loser.User, winner.User, PayoutMethod.DiffBet);
         }
 
-        public static Payout EvaluateFullContract(UserBet winner, UserBet loser)
+        public static Payout EvaluateFullContract(bool resolution, UserBet winner, UserBet loser)
         {
             var middle = (winner.Estimate + loser.Estimate) / 200;
-            if (winner.Estimate > loser.Estimate)
+            if ((resolution && winner.Estimate > loser.Estimate) || (!resolution && winner.Estimate<loser.Estimate))
             {
-                return new Payout(1 - middle, loser.User, winner.User, PayoutMethod.DiffBet);
+                return new Payout(1 - middle, loser.User, winner.User, PayoutMethod.FullContract);
             }
             else if (winner.Estimate < loser.Estimate)
             {
-                return new Payout(middle, loser.User, winner.User, PayoutMethod.DiffBet);
+                return new Payout(middle, loser.User, winner.User, PayoutMethod.FullContract);
             }
             else
             {
-                return new Payout(0, loser.User, winner.User, PayoutMethod.DiffBet);
+                return new Payout(0, loser.User, winner.User, PayoutMethod.FullContract);
             }
         }
 
-        public static Payout EvaluateStraight(UserBet winner,  UserBet loser)
+        public static Payout EvaluateStraight(bool resolution, UserBet winner,  UserBet loser)
         {
             var p = new Payout(1, loser.User, winner.User, PayoutMethod.StraightBet);
             return p;
@@ -146,7 +146,7 @@ namespace PredictionsBetting
         /// wrapper for various payout methods.
         /// provides them with the pred (for naming, resolution, etc. and the winner & loser);
         /// </summary>
-        public static IEnumerable<Payout> EvaluateAccordingToFunction(Predicate pred, Func<UserBet, UserBet, Payout> func, PayoutMethod method)
+        public static IEnumerable<Payout> EvaluateAccordingToFunction(Predicate pred, Func<bool, UserBet, UserBet, Payout> func, PayoutMethod method)
         {
             var res = new List<Payout>();
             if (!pred.Valid)
@@ -188,7 +188,7 @@ namespace PredictionsBetting
                         loser = ub1;
                     }
                     
-                    var p = func(winner, loser);
+                    var p = func(pred.ResolvedTrue, winner, loser);
                     Console.WriteLine($"\tpayout: {p}");
                     res.Add(p);
                 }
