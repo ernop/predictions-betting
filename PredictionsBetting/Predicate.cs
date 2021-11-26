@@ -7,7 +7,10 @@ namespace PredictionsBetting
 {
     public class Predicate
     {
-        public DateTime targetDate = new DateTime(2022, 1, 1);
+        /// <summary>
+        /// hardcode this... TODO
+        /// </summary>
+        public static DateTime targetDate = new DateTime(2022, 1, 1);
         public string Text { get; set; }
         public List<UserBet> UserBets { get; set; } = new List<UserBet>();
         public bool ResolvedTrue { get; set; }
