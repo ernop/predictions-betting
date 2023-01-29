@@ -51,6 +51,30 @@ namespace PredictionsBetting
 
             return tot;
         }
+        
+        private static void CalculateLogOddsPayoffs(IEnumerable<Predicate> preds, IEnumerable<User> users){
+            var payoffs = new Dictionary<string, double>();
+            foreach (var pred in preds)
+            {
+                var ub = pred.UserBets;
+                var sub = pred.ResolvedTrue ? 1 : 0;
+                // calculate log-score for each user.
+                // var user_to_log_score = ub.map(prediction => sub ? log(prediction) : log(1-prediction))
+                
+                // add a constant to make sure all the scores are positive
+                // var min_log_score = user_to_log_score.min()
+                // user_to_log_score.apply(score => score - min_log_score)
+                
+                // now scale the scores down so they add up to 1.
+                // var sum = user_to_log_score.sum()
+                // user_to_log_score.apply(score => score / sum)
+                
+                // Now add these to the payoffs.
+                // user_to_log_score.apply(user, score => payoffs[user] += score)
+            }
+            // print payoffs.
+        }
+                
 
         internal static Dictionary<string, double> SumPayouts(IEnumerable<Payout> payouts)
         {
