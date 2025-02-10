@@ -2,38 +2,90 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace PredictionsBetting
 {
 
     public class Program
     {
-        public static string path = @"d:\\proj\\predictions-betting\\data.csv";
-        public static List<string> usernames = new List<string>() { "ivan", "jason", "daffy", "ernie" };
+        public static string path = @"d:\\proj\\predictions-betting\\data-2024.csv";
+        public static List<string> usernames = new List<string>() { "ivan", "jason", "ernie","daffy" };
         public static IEnumerable<User> users = usernames.Select(el => new User(el));
 
         static void Main(string[] args)
         {
+            var cutout = false;
+            if (cutout)
+            {
+                var ub = new List<UserBet>();
+                var a = new User("A");
+                var b = new User("B");
+                var aa = new UserBet(a, 50);
+                for (var ii = 0; ii < 100; ii++)
+                {
+                    var bb = new UserBet(b, ii);
+                    var p = new Predicate("ABC", new List<UserBet>() { aa,bb}, false, DateTime.Now, true, "Yes", "A");
+                    var methods = new Dictionary<PayoutMethod, Func<bool, UserBet, UserBet, Payout>>() { };
+                    //methods[PayoutMethod.StraightBet] = EvaluateStraight;
+                    //methods[PayoutMethod.DiffBet] = EvaluateDiffBets;
+                    methods[PayoutMethod.FullContract] = EvaluateFullContract;
+                    var payouts = EvaluateAccordingToFunction(p, methods[PayoutMethod.FullContract], PayoutMethod.FullContract);
+                    if (payouts.Count() == 0)
+                    {
+                        Console.WriteLine($"FullContract at: A 50% vs B {ii}%, resolved 0%, No payment will be made.");
+                        continue;
+                    }
+                    Console.WriteLine($"FullContract at: A 50% vs B {ii}%, resolved 0%, payout is: {payouts.First()}");
+                    var payoutResults = SumPayouts(payouts);
+                }
+                for (var ii = 0; ii < 100; ii++)
+                {
+                    var bb = new UserBet(b, ii);
+                    var p = new Predicate("ABC", new List<UserBet>() { aa, bb }, false, DateTime.Now, true, "Yes", "A");
+                    var methods = new Dictionary<PayoutMethod, Func<bool, UserBet, UserBet, Payout>>() { };
+                    //methods[PayoutMethod.StraightBet] = EvaluateStraight;
+                    //methods[PayoutMethod.DiffBet] = EvaluateDiffBets;
+                    methods[PayoutMethod.Multiplicative] = EvaluateMultiplicative;
+                    var payouts = EvaluateAccordingToFunction(p, methods[PayoutMethod.Multiplicative], PayoutMethod.FullContract);
+                    if (payouts.Count() == 0)
+                    {
+                        Console.WriteLine($"Multiplicative at: A 50% vs B {ii}%, resolved 0%, No payment will be made.");
+                        continue;
+                    }
+                    Console.WriteLine($"Multiplicative at: A 50% vs B {ii}%, resolved 0%, payout is: {payouts.First()}");
+                    var payoutResults = SumPayouts(payouts);
+                }
+                for (var ii = 0; ii < 100; ii++)
+                {
+                    var bb = new UserBet(b, ii);
+                    var p = new Predicate("ABC", new List<UserBet>() { aa, bb }, false, DateTime.Now, true, "Yes", "A");
+                    var methods = new Dictionary<PayoutMethod, Func<bool, UserBet, UserBet, Payout>>() { };
+                    //methods[PayoutMethod.StraightBet] = EvaluateStraight;
+                    methods[PayoutMethod.DiffBet] = EvaluateDiffBets;
+                    //methods[PayoutMethod.FullContract] = EvaluateFullContract;
+                    var payouts = EvaluateAccordingToFunction(p, methods[PayoutMethod.DiffBet], PayoutMethod.FullContract);
+                    if (payouts.Count() == 0)
+                    {
+                        Console.WriteLine($"DiffBet at: A 50% vs B {ii}%, resolved 0%, No payment will be made.");
+                        continue;
+                    }
+                    Console.WriteLine($"DiffBet at: A 50% vs B {ii}%, resolved 0%, payout is: {payouts.First()}");
+                    var payoutResults = SumPayouts(payouts);
+                }
+
+                Console.ReadLine();
+                return;
+            }
+
             var rawPredicates = LoadPredicates();
             Evaluate(rawPredicates);
 
-            //var allDomains = rawPredicates.Select(el => el.Domain).ToHashSet();
-            
             foreach (var user in users)
             {
                 var bs = CalculateBrier(rawPredicates, user);
                 Console.WriteLine($"BrierScore: {user}: {bs}");
             }
-
-            //foreach (var domain in allDomains)
-            //{
-            //    foreach (var user in users)
-            //    {
-            //        var usePreds = rawPredicates.Where(el => el.Domain == domain);
-            //        var bs = CalculateBrier(usePreds, user);
-            //        Console.WriteLine($"{domain} ({usePreds.Count()}) {user}: {bs}");
-            //    }
-            //}
 
             Console.ReadLine();
         }
@@ -85,16 +137,28 @@ namespace PredictionsBetting
             {
                 Console.WriteLine(pred.Text);
                 Console.WriteLine($"\tResolution: {pred.ResolvedTrue}");
-                var userBets = string.Join(" ", pred.UserBets.Select(el => $"{el.User.Name}:{el.Estimate}"));
-                Console.WriteLine("\t" + userBets);
+                var userBets = string.Join("\t", pred.UserBets.OrderBy(el=>el.Estimate).Select(el => $"{el.User.Name}:{el.Estimate}%"));
+                Console.WriteLine("\tEstimates:\t" + userBets);
+                Console.Write("\tScoring by method:\t");
                 foreach (var methodEnum in methods.Keys)
                 {
                     var method = methods[methodEnum];
                     if (!results.ContainsKey(methodEnum)) { results[methodEnum] = new Dictionary<string, double>(); }
                     var payouts = EvaluateAccordingToFunction(pred, method, methodEnum);
                     var payoutResults = SumPayouts(payouts);
-                    var moneyDescription = users.Select(el => $"{el}: {payoutResults[el.Name]:N2}").ToList();
-                    Console.WriteLine("\t\t"+string.Join(" ", moneyDescription));
+                    var orderMult = 1;
+                    if (!pred.ResolvedTrue)
+                    {
+                        orderMult = -1;
+                    }
+                    var moneyDescription = users
+                        .OrderBy(ee => payoutResults[ee.Name]*orderMult)
+                        .Select(el => $"{el}: {(payoutResults[el.Name] >= 0 ? "+" : "")}{Math.Round(payoutResults[el.Name], 3),-8}")
+                        .ToList();
+    
+                    Console.WriteLine("");
+                    Console.Write($"\t\t{methodEnum,-30}");
+                    Console.Write("\t"+string.Join("", moneyDescription));
                     foreach (var pr in payoutResults)
                     {
                         if (!results[methodEnum].ContainsKey(pr.Key)) { results[methodEnum][pr.Key] = 0; }
@@ -102,13 +166,19 @@ namespace PredictionsBetting
                     }
                 }
 
-                Console.WriteLine("\n\tRunning totals:");
+                Console.WriteLine("\n\n\tRunning totals:");
                 foreach (var methodName in results.Keys)
                 {
                     Console.WriteLine("\t\t"+methodName);
                     foreach (var user in users)
                     {
-                        Console.WriteLine($"\t\t\t{methodName} {user.Name} {results[methodName][user.Name]}");
+                        var val = Math.Round(results[methodName][user.Name], 1);
+                        var sign = "";
+                        if (val > 0)
+                        {
+                            sign = "+";
+                        }
+                        Console.WriteLine($"\t\t\t{methodName} {user.Name} {sign}{val}");
                     }
                 }
             }
@@ -201,14 +271,14 @@ namespace PredictionsBetting
                 Console.WriteLine($"Invalid pred: {pred}");
                 return res;
             }
-            Console.WriteLine("\t"+method);
-            for (var ii = 0; ii < 4; ii++)
+            //Console.WriteLine("\t"+method);
+            for (var ii = 0; ii < pred.UserBets.Count(); ii++)
             {
-                for (var jj = ii + 1; jj < 4; jj++)
+                for (var jj = ii + 1; jj < pred.UserBets.Count(); jj++)
                 {
                     var ub1 = pred.UserBets.Skip(ii).First();
                     var ub2 = pred.UserBets.Skip(jj).First();
-                    Console.Write($"\t\t{ub1} vs {ub2}");
+                    //Console.Write($"\t\t{ub1} vs {ub2}");
 
                     UserBet winner;
                     UserBet loser;
@@ -236,7 +306,7 @@ namespace PredictionsBetting
                     }
                     
                     var p = func(pred.ResolvedTrue, winner, loser);
-                    Console.WriteLine($"\tpayout: {p}");
+                    //Console.WriteLine($"\tpayout: {p}");
                     res.Add(p);
                 }
             }

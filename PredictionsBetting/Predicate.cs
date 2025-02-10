@@ -10,7 +10,7 @@ namespace PredictionsBetting
         /// <summary>
         /// hardcode this... TODO
         /// </summary>
-        public static DateTime targetDate = new DateTime(2022, 1, 1);
+        public static DateTime targetDate = new DateTime(2025, 1, 1);
         public string Text { get; set; }
         public List<UserBet> UserBets { get; set; } = new List<UserBet>();
         public bool ResolvedTrue { get; set; }
@@ -18,6 +18,17 @@ namespace PredictionsBetting
         public bool Valid { get; set; }
         public string ValidityReason { get; set; }
         public string Domain { get; set; }
+
+        public Predicate(string text, List<UserBet> userBets, bool resolvedTrue, DateTime dueDate, bool valid, string validityReason, string domain)
+        {
+            Text = text;
+            UserBets = userBets;
+            ResolvedTrue = resolvedTrue;
+            DueDate = dueDate;
+            Valid = valid;
+            ValidityReason = validityReason;
+            Domain = domain;
+        }
 
         /// <summary>
         /// parsing text
@@ -64,19 +75,8 @@ namespace PredictionsBetting
                 }
                 UserBets.Add(ub);
             }
-            if (lsp.Count < 10)
-            {
-                Valid = false;
-                Console.WriteLine($"Invalid. {line}");
-                return;
-            }
-
             if (TryGetResolution(lsp[9], out var finalResult)){
                 ResolvedTrue = finalResult;
-            }
-            else if (TryGetResolution(lsp[10], out var candidateResult))
-            {
-                ResolvedTrue = candidateResult;
             }
             else
             {
@@ -89,6 +89,14 @@ namespace PredictionsBetting
         private bool TryGetResolution(string val, out bool result)
         {
             val = val.ToLower();
+            if (val == "1")
+            {
+                val = "t";
+            }
+            if (val == "0")
+            {
+                val = "f";
+            }
             if (val != "t" && val != "f")
             {
                 result = false;
