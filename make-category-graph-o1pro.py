@@ -9,11 +9,13 @@ import math
 # Multiline string of the data exactly as given:
 TABLE_TEXT = """
         Daffy   Ernie   Ivan    Jason
-Daffy   -3      -3      -4      4    
-Ernie   3       -1      0       6    
-Ivan    0       -2      2       -5   
-Jason   1       6       3       -5   
+Daffy  -3.2	-3.2	-4.4	3.8	-0.8	-0.8
+Ernie 3.0	-1.0	0.0	5.7	-0.7	-1.4
+Ivan -0.4	-2.2	1.6	-4.9	-1.3	-1.7
+Jason 0.6	6.4	2.9	-4.6	2.9	1.3
 """
+
+TABLE_LABEL = "Prediction FullContract net score by subject, 2024"
 
 def parse_table(table_str):
     """
@@ -61,7 +63,7 @@ def parse_table(table_str):
         row_dict = {}
         for col_header, val_str in zip(numeric_headers, row_values):
             if col_header in valid_people:
-                row_dict[col_header] = int(val_str)
+                row_dict[col_header] = float(val_str)
                 print(f"Debug: Added {row_person} -> {col_header} = {val_str}")
 
         data[row_person] = row_dict
@@ -109,58 +111,88 @@ def create_graph_variation(data, index, output_filename):
 
     # Edge attributes for better label placement
     dot.attr('edge', 
-            fontsize='30',        # Larger font for edge labels
-            fontname='Arial',
-            labelangle='45',
-            penwidth='0.5')       # Thinner edges
+            fontsize='20',        # Larger font for edge labels
+            fontname='Arial Bold',  # Changed to bold font
+            penwidth='0.3')       # Thinner edges
+
+    # Define port positions for self-edges with slight offsets
+    self_edge_ports = {
+        "Daffy": ("ne", "se"),     # right side: northeast to southeast
+        "Ernie": ("nw", "sw"),     # left side: northwest to southwest
+        "Ivan": ("nw", "sw"),      # left side: northwest to southwest
+        "Jason": ("nw", "sw")      # left side: northwest to southwest
+    }
 
     for src in valid_people:
         for dst in valid_people:
             val = data[src].get(dst, None)
             if val is not None:
                 label_str = f"+{val}" if val >= 0 else str(val)
-                # Determine label color based on value
                 if val == 0:
                     label_color = '#808080'  # grey
                 elif val < 0:
                     label_color = '#FF9999'  # light red
                 else:
                     label_color = '#90EE90'  # light green
-                
-                # Fixed distances: 2.0 for self-edges, 1.2 for non-self edges
+                label_angle = '15'
                 if src == dst:
-                    label_dist = 2.0
+                    # Self-edge: use specific ports for each vertex
+                    label_dist = 2.2
+                    tailport, headport = self_edge_ports[src]
+                    dot.edge(src, dst, 
+                            label='',
+                            labeldistance=str(label_dist),
+                            fontcolor=label_color,
+                            headlabel='',
+                            taillabel=label_str,
+                            labelfloat='false',
+                            labelangle=label_angle,
+                            dir='',              # Removed double-headed arrow
+                            minlen='1',
+                            weight='1',
+                            tailport=tailport,
+                            headport=headport,
+                            constraint='false')
                 else:
-                    label_dist = 2.2  # Increased from 0.5 to move labels further from source
-                
-                dot.edge(src, dst, 
-                        label='',
-                        labeldistance=str(label_dist),
-                        fontcolor=label_color,
-                        headlabel=label_str,
-                        taillabel='',
-                        labelfloat='false',
-                        labelangle='0')
+                    # Regular edge
+                    label_dist = 3.6
+                    
+                    dot.edge(src, dst, 
+                            label='',
+                            labeldistance=str(label_dist),
+                            fontcolor=label_color,
+                            headlabel='',
+                            taillabel=label_str,
+                            labelfloat='false',
+                            labelangle=label_angle)
 
     # Generate description
     desc = f"#{index:03d} - Large Triangle (r={radius:.1f}), Tiny Nodes (w=0.02)"
+    desc = TABLE_LABEL
     
     # Render and annotate
     dot.render(output_filename, cleanup=True)
     
     img = Image.open(output_filename + '.png')
-    draw = ImageDraw.Draw(img)
+    
+    # Create a new taller image with white background
+    title_height = 200  # Increased space for larger title
+    new_img = Image.new('RGB', (img.width, img.height + title_height), 'white')
+    
+    # Paste original graph below the title space
+    new_img.paste(img, (0, title_height))
+    
+    # Add title text
+    draw = ImageDraw.Draw(new_img)
     try:
-        font = ImageFont.truetype("DejaVuSans.ttf", 20)
+        font = ImageFont.truetype("DejaVuSans.ttf", 96)  # Increased from 36 to 108
     except:
         font = ImageFont.load_default()
     
-    text_bbox = draw.textbbox((10, img.height - 40), desc, font=font)
-    draw.rectangle([text_bbox[0]-5, text_bbox[1]-5, text_bbox[2]+5, text_bbox[3]+5], 
-                  fill='white')
-    draw.text((10, img.height - 40), desc, fill='black', font=font)
+    # Draw text in the empty space
+    draw.text((20, 20), desc, fill='black', font=font)
     
-    img.save(output_filename + '.png')
+    new_img.save(output_filename + '.png')
     
     return desc
 
