@@ -9,7 +9,7 @@ namespace PredictionsBetting
 
     public class Program
     {
-        public static string path = @"d:\\proj\\predictions-betting\\data-2024.csv";
+        public static string path = @"d:\\proj\\predictions-betting\\data-2023.csv";
         public static List<string> usernames = new List<string>() { "ivan", "jason", "ernie","daffy" };
         public static IEnumerable<User> users = usernames.Select(el => new User(el));
 
@@ -132,18 +132,27 @@ namespace PredictionsBetting
             methods[PayoutMethod.DiffBet] = EvaluateDiffBets;
             methods[PayoutMethod.FullContract] = EvaluateFullContract;
             methods[PayoutMethod.Multiplicative] = EvaluateMultiplicative;
-            var results = new Dictionary<PayoutMethod, Dictionary<string, double>>();
+            var totals = new Dictionary<PayoutMethod, Dictionary<string, double>>();
+            var lines = new List<List<string>>();
             foreach (var pred in preds)
             {
-                Console.WriteLine(pred.Text);
-                Console.WriteLine($"\tResolution: {pred.ResolvedTrue}");
+                var line = new List<string>();
+                //Console.WriteLine(pred.Text);
+                line.Add(pred.Domain);
+                line.Add(pred.Text);
+                line.Add(pred.ResolvedTrue.ToString());
+                //Console.WriteLine($"\tResolution: {pred.ResolvedTrue}");
                 var userBets = string.Join("\t", pred.UserBets.OrderBy(el=>el.Estimate).Select(el => $"{el.User.Name}:{el.Estimate}%"));
+                foreach (var l in pred.UserBets.OrderBy(el => el.User.Name).Select(el => $"{el.Estimate}"))
+                {
+                    line.Add(l);
+                }
                 Console.WriteLine("\tEstimates:\t" + userBets);
                 Console.Write("\tScoring by method:\t");
                 foreach (var methodEnum in methods.Keys)
                 {
                     var method = methods[methodEnum];
-                    if (!results.ContainsKey(methodEnum)) { results[methodEnum] = new Dictionary<string, double>(); }
+                    if (!totals.ContainsKey(methodEnum)) { totals[methodEnum] = new Dictionary<string, double>(); }
                     var payouts = EvaluateAccordingToFunction(pred, method, methodEnum);
                     var payoutResults = SumPayouts(payouts);
                     var orderMult = 1;
@@ -151,28 +160,43 @@ namespace PredictionsBetting
                     {
                         orderMult = -1;
                     }
-                    var moneyDescription = users
-                        .OrderBy(ee => payoutResults[ee.Name]*orderMult)
-                        .Select(el => $"{el}: {(payoutResults[el.Name] >= 0 ? "+" : "")}{Math.Round(payoutResults[el.Name], 3),-8}")
-                        .ToList();
+                    var moneyDescription = new List<string>();
+                    if (payoutResults.Count() > 0)
+                    {
+                        moneyDescription = users
+                            .OrderBy(user1 => payoutResults[user1.Name] * orderMult)
+                            .Select(user2 => $"{user2}: {(payoutResults[user2.Name] >= 0 ? "+" : "")}{Math.Round(payoutResults[user2.Name], 3),-8}")
+                            .ToList();
+                    }
     
                     Console.WriteLine("");
                     Console.Write($"\t\t{methodEnum,-30}");
                     Console.Write("\t"+string.Join("", moneyDescription));
                     foreach (var pr in payoutResults)
                     {
-                        if (!results[methodEnum].ContainsKey(pr.Key)) { results[methodEnum][pr.Key] = 0; }
-                        results[methodEnum][pr.Key] += pr.Value;
+                        if (!totals[methodEnum].ContainsKey(pr.Key)) { totals[methodEnum][pr.Key] = 0; }
+                        totals[methodEnum][pr.Key] += pr.Value;
+                    }
+                    foreach (var user in users)
+                    {
+                        if (payoutResults.ContainsKey(user.Name))
+                        {
+                            line.Add(payoutResults[user.Name].ToString());
+                        }
+                        else
+                        {
+                            line.Add("no payout");
+                        }
                     }
                 }
 
                 Console.WriteLine("\n\n\tRunning totals:");
-                foreach (var methodName in results.Keys)
+                foreach (var methodName in totals.Keys)
                 {
                     Console.WriteLine("\t\t"+methodName);
                     foreach (var user in users)
                     {
-                        var val = Math.Round(results[methodName][user.Name], 1);
+                        var val = Math.Round(totals[methodName][user.Name], 1);
                         var sign = "";
                         if (val > 0)
                         {
@@ -181,7 +205,19 @@ namespace PredictionsBetting
                         Console.WriteLine($"\t\t\t{methodName} {user.Name} {sign}{val}");
                     }
                 }
+                lines.Add(line);
             }
+
+            var joinedLines = new List<string>();
+            foreach (var line in lines)
+            {
+                var joined = string.Join("\t", line);
+                joinedLines.Add(joined);
+                
+
+            }
+            System.IO.File.WriteAllLines("outpath-2023.csv", joinedLines);
+
         }
 
         public static Payout EvaluateDiffBets(bool resolution, UserBet winner, UserBet loser)

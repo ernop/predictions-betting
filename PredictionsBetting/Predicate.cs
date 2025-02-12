@@ -10,7 +10,7 @@ namespace PredictionsBetting
         /// <summary>
         /// hardcode this... TODO
         /// </summary>
-        public static DateTime targetDate = new DateTime(2025, 1, 1);
+        public static DateTime targetDate = new DateTime(2024, 1, 1);
         public string Text { get; set; }
         public List<UserBet> UserBets { get; set; } = new List<UserBet>();
         public bool ResolvedTrue { get; set; }
